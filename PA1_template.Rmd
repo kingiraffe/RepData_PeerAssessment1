@@ -1,25 +1,116 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+Reproducible Research Project
+=============================
+
+This is my R markdown file for reproducible research project
+
+First, I read the dataset "activity.csv", and transform the column "date" into Date class, and transform the column "interval" into numeric class for later use
+
+```{r}
+activity <- read.csv("activity.csv")
+activity$date <- as.Date(as.character(activity$date))
+activity$interval <- as.numeric(activity$interval)
+```
+
+Second, I calculate the total number of steps each day, using function "tapply", and draw a histogram of it
+
+```{r}
+steps_per_day <- with(activity, tapply(steps, date, sum))
+hist(steps_per_day, col = "red")
+```
+
+Third, I calculate the mean and median of steps each day
+```{r}
+steps_mean <- mean(steps_per_day, na.rm = TRUE)
+steps_mean
+steps_median <- median(steps_per_day, na.rm = TRUE)
+steps_median
+```
+The mean and median of total number of steps taken per day are `r steps_mean` and `r steps_median`
+
+Fourth, I calculate average steps on 5-minute interval to draw a time-series plot
+```{r}
+pattern <- with(activity, tapply(steps, interval, mean, na.rm = TRUE))
+plot(names(pattern), pattern, type = "l", xlab = "5-minute interval", ylab = "average number of steps")
+title("average daily activity pattern")
+```
+
+Fifth, I find the max steps on 5-minute interval
+```{r}
+max_steps <- max(pattern, na.rm = TRUE)
+max_steps
+max_interval <- names(which.max(pattern))
+max_interval
+```
+The max 5-minute interval is `r max_interval` and its value is `r max_steps`
+
+Sixth, I fill na with the average of the following 2 days, some of days are calculated on 2 days before because there is missing value in its following dates or without a value, and create a new dataset with missing values filled in
+```{r}
+num_miss <- sum(is.na(activity$steps))
+steps_per_day_mean <- with(activity, tapply(steps, date, mean))
+olddata <- activity
+activity_num <- as.numeric(nrow(activity))
+for (i in 1:activity_num) {
+  if (is.na(activity[i, "steps"]) == TRUE){
+    if (activity[i, "date"] == "2012-11-30"){
+      activity[i, "steps"] <- (steps_per_day_mean[as.character(activity[i, "date"] - 1)] + steps_per_day_mean[as.character(activity[i, "date"] - 2)])/2
+    }
+    else if (activity[i, "date"] == "2012-11-09"){
+      activity[i, "steps"] <- (steps_per_day_mean[as.character(activity[i, "date"] - 1)] + steps_per_day_mean[as.character(activity[i, "date"] - 2)])/2
+    }
+    else {
+      activity[i, "steps"] <- (steps_per_day_mean[as.character(activity[i, "date"] + 1)] + steps_per_day_mean[as.character(activity[i, "date"] + 2)])/2
+    }
+  }
+}
+newdata <- activity
+```
+the total number of missing values is `r num_miss`
 
 
-## Loading and preprocessing the data
+Seventh, I draw a histogram of total steps each day using the new dataset and compare with the unfilled one
+```{r}
+steps_per_day_new <- with(newdata, tapply(steps, date, sum))
+hist(steps_per_day_new, col = "blue")
+
+steps_mean <- mean(steps_per_day, na.rm = TRUE)
+steps_mean
+steps_mean_new <- mean(steps_per_day, na.rm = TRUE)
+steps_mean_new
 
 
+steps_median <- median(steps_per_day, na.rm = TRUE)
+steps_median
+steps_median_new <- median(steps_per_day, na.rm = TRUE)
+steps_median_new
+```
+the mean and median total number of steps taken per day are `r steps_mean_new` and `r steps_median_new`; 
+the mean and median number of steps taken per day in first part are `r steps_mean` and `r steps_median`
+the values are the same.
+Imputing missing data has no impact on estimate of the total daily number of steps
 
-## What is mean total number of steps taken per day?
+Eighth, I separate the dataset on weekend and weekday, and draw a panal plot comparing the time series
+```{r}
+Sys.setlocale(category = "LC_ALL", locale = "english")
+for (i in 1:activity_num) {
+  if (weekdays(activity[i, "date"]) == "Saturday" | weekdays(activity[i, "date"]) == "Sunday") {
+    activity$day[i] <- "weekend"
+  }
+  else {
+    activity$day[i] <- "weekday"
+  }
+}
 
+weekend_activity <- subset(activity, day == "weekend")
+weekday_activity <- subset(activity, day == "weekday")
 
+par(mfrow = c(2,1))
+weekend_pattern <- with(weekend_activity, tapply(steps, interval, mean, na.rm = TRUE))
+plot(names(weekend_pattern), weekend_pattern, type = "l", xlab = "5-minute interval", ylab = "average number of weekend steps")
+title("weekend")
 
-## What is the average daily activity pattern?
+weekday_pattern <- with(weekday_activity, tapply(steps, interval, mean, na.rm = TRUE))
+plot(names(weekday_pattern), weekday_pattern, type = "l", xlab = "5-minute interval", ylab = "average number of weekday steps")
+title("weekday")
+```
 
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+There is difference between weekdays and weekends, on weekdays, activity seems to be less active, only active in the period around 8 a.m. the time going for work, but on weekends, activity seems to be active all along a day
